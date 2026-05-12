@@ -1,0 +1,110 @@
+@startuml NeuralMap Class Diagram
+
+skinparam classBackgroundColor #1f2937
+skinparam classBorderColor #3b82f6
+skinparam classHeaderBackgroundColor #1e3a5f
+skinparam fontColor #f9fafb
+skinparam arrowColor #60a5fa
+skinparam packageBackgroundColor #111827
+
+package "ORM Models" {
+    class Apartment {
+        + id: int
+        + lat: float
+        + lon: float
+        + price_per_m2: float
+        + area_m2: float
+        + floor: int
+        + build_year: int
+        + district: str
+        + created_at: datetime
+    }
+
+    class ModelRun {
+        + id: int
+        + name: str
+        + epochs: int
+        + learning_rate: float
+        - _hidden_layers: str
+        + mse_loss: float
+        + r2_score: float
+        + weights_path: str
+        + status: str
+        + created_at: datetime
+        + hidden_layers: list[int]
+    }
+
+    class User {
+        + id: int
+        + email: str
+        + name: str
+        + picture: str
+        + provider: str
+        + provider_id: str
+        + role: str
+        + created_at: datetime
+    }
+}
+
+package "ML Module" {
+    class PricePredictor {
+        - network: nn.Sequential
+        + forward(x: Tensor): Tensor
+    }
+
+    class FeatureStats {
+        + area_min: float
+        + area_max: float
+        + floor_min: float
+        + floor_max: float
+        + year_min: float
+        + year_max: float
+        + price_min: float
+        + price_max: float
+    }
+
+    class Trainer {
+        + train_model(run_id, df, epochs, lr, hidden_layers, weights_path): dict
+        + TRAINING_STATE: dict
+    }
+
+    class InferenceEngine {
+        + generate_heatmap(weights_path, resolution, area_m2, floor, build_year): dict
+    }
+}
+
+package "Routers" {
+    class ApartmentsRouter {
+        + list_apartments(): ApartmentListResponse
+    }
+
+    class TrainingRouter {
+        + start_training(req): TrainResponse
+        + get_training_status(run_id): TrainStatusResponse
+        + list_models(): list[ModelRunRead]
+    }
+
+    class InferenceRouter {
+        + get_heatmap(req): HeatmapResponse
+    }
+
+    class AuthRouter {
+        + google_login(): RedirectResponse
+        + google_callback(): RedirectResponse
+        + get_me(): dict
+    }
+}
+
+Trainer --> PricePredictor : creates
+Trainer --> FeatureStats : uses
+InferenceEngine --> PricePredictor : loads
+InferenceEngine --> FeatureStats : uses
+
+TrainingRouter --> Trainer : delegates
+TrainingRouter --> ModelRun : persists
+ApartmentsRouter --> Apartment : queries
+InferenceRouter --> InferenceEngine : calls
+InferenceRouter --> ModelRun : checks
+AuthRouter --> User : upserts
+
+@enduml

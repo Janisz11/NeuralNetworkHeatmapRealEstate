@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Alembic
+# Keep versions tracked, ignore nothing here
+
+# Model weights (large binary files)
+backend/weights/*.pt
+
+# Environment
+.env
+*.env.local
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker
+.docker/
+
+# macOS
+.DS_Store

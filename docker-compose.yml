@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: neuralmap
+      POSTGRES_PASSWORD: neuralmap
+      POSTGRES_DB: neuralmap
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuralmap"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://neuralmap:neuralmap@postgres:5432/neuralmap
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SECRET_KEY: ${SECRET_KEY:-super-secret-change-me}
+      FRONTEND_URL: http://localhost
+      WEIGHTS_DIR: /app/weights
+    volumes:
+      - weights:/app/weights
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        python seed.py &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  weights:

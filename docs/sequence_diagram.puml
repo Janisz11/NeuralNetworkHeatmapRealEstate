@@ -1,0 +1,65 @@
+@startuml Training + Heatmap Sequence
+
+skinparam backgroundColor #030712
+skinparam sequenceArrowColor #60a5fa
+skinparam sequenceLifeLineBorderColor #3b82f6
+skinparam sequenceParticipantBackgroundColor #1f2937
+skinparam sequenceParticipantBorderColor #3b82f6
+skinparam fontColor #f9fafb
+
+== Training Flow ==
+
+actor User
+participant "React Frontend" as FE
+participant "FastAPI /train" as API
+participant "BackgroundTask\n(Trainer)" as BG
+database "PostgreSQL" as DB
+participant "Filesystem\n(weights/)" as FS
+
+User -> FE: Click "Uruchom trening"\n(epochs=200, lr=0.001, layers=[64,32])
+FE -> API: POST /api/train
+API -> DB: INSERT model_runs\nstatus="training"
+DB --> API: run_id=42
+API --> FE: {run_id: 42, status: "training"}
+API -> BG: BackgroundTask.add_task(train_model, run_id=42)
+
+loop every 2 seconds
+    FE -> API: GET /api/train/42/status
+    API -> BG: read TRAINING_STATE[42]
+    API --> FE: {current_epoch, loss, r2_score}
+    FE -> FE: Update LossChart
+end
+
+BG -> BG: Forward pass + backprop\n(batch_size=32, Adam optimizer)
+BG -> FS: torch.save({weights, stats}, "weights/42.pt")
+BG -> DB: UPDATE model_runs\nstatus="done", mse_loss, r2_score
+FE -> FE: Auto-select model 42
+
+== Heatmap Request Flow ==
+
+User -> FE: Move slider (area_m2=60)
+FE -> FE: Debounce 300ms
+FE -> API: POST /api/heatmap\n{run_id:42, resolution:100, area_m2:60, ...}
+API -> DB: SELECT model_runs WHERE id=42
+API -> FS: torch.load("weights/42.pt")
+API -> API: Build 100×100 lat/lon grid\nRun 10,000 forward passes
+API -> API: PIL.Image → base64 PNG
+API --> FE: {image_base64, min_val, max_val, bounds}
+FE -> FE: L.imageOverlay.setUrl(data:image/png;base64,...)
+FE -> User: Heatmap updated on Leaflet map
+
+== OAuth Flow ==
+
+User -> FE: Click "Zaloguj przez Google"
+FE -> API: GET /auth/google
+API --> User: Redirect → Google consent screen
+User -> API: GET /auth/google/callback?code=...
+API -> API: Authlib exchange code for token
+API -> DB: UPSERT users (email, provider_id)
+API -> API: Create JWT (HS256)
+API --> FE: Redirect /admin?token=<jwt>
+FE -> FE: localStorage.setItem("auth_token", jwt)
+FE -> API: GET /auth/me (Bearer <jwt>)
+API --> FE: {email, name, picture, role}
+
+@enduml
