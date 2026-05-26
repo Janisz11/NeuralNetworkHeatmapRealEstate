@@ -2,6 +2,7 @@
 import axios from "axios";
 import type {
   ApartmentListResponse,
+  CityInfo,
   HeatmapRequest,
   HeatmapResponse,
   ModelRun,
@@ -35,6 +36,9 @@ export const getTrainingStatus = (runId: number): Promise<TrainStatus> =>
 
 export const getHeatmap = (req: HeatmapRequest): Promise<HeatmapResponse> =>
   api.post<HeatmapResponse>("/api/heatmap", req).then((r) => r.data);
+
+export const getCities = (): Promise<CityInfo[]> =>
+  api.get<CityInfo[]>("/api/cities").then((r) => r.data);
 
 export const getMe = (): Promise<User> =>
   api.get<User>("/auth/me").then((r) => r.data);

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, func
+from sqlalchemy import Column, Index, Integer, Float, String, DateTime, func
 from ..database import Base
 
 
@@ -12,5 +12,6 @@ class Apartment(Base):
     area_m2 = Column(Float, nullable=False)
     floor = Column(Integer, nullable=False)
     build_year = Column(Integer, nullable=False)
-    district = Column(String(100), nullable=True)
+    centre_distance = Column(Float, nullable=False)
+    city = Column(String(100), nullable=False, index=True)
     created_at = Column(DateTime, server_default=func.now())

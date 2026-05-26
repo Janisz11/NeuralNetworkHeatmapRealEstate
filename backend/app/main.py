@@ -5,13 +5,14 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from .config import get_settings
 from .routers import apartments, training, inference, auth
+from .cities import CITIES
 
 settings = get_settings()
 
 app = FastAPI(
-    title="NeuralMap Wrocław API",
-    description="Neural network real estate price heatmap for Wrocław",
-    version="1.0.0",
+    title="NeuralMap Poland API",
+    description="Neural network real estate price heatmap for Poland",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -34,4 +35,17 @@ os.makedirs(settings.weights_dir, exist_ok=True)
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "neuralmap-wroclaw"}
+    return {"status": "ok", "service": "neuralmap-poland"}
+
+
+@app.get("/api/cities")
+def list_cities():
+    return [
+        {
+            "slug": c["slug"],
+            "display_name": c["display_name"],
+            "centre_lat": c["centre_lat"],
+            "centre_lon": c["centre_lon"],
+        }
+        for c in CITIES.values()
+    ]

@@ -4,13 +4,14 @@ from typing import Optional
 
 
 class ApartmentBase(BaseModel):
-    lat: float = Field(..., ge=51.0, le=51.3, description="WGS-84 latitude within Wrocław")
-    lon: float = Field(..., ge=16.8, le=17.2, description="WGS-84 longitude within Wrocław")
+    lat: float = Field(..., ge=49.0, le=54.9, description="WGS-84 latitude within Poland")
+    lon: float = Field(..., ge=14.1, le=24.2, description="WGS-84 longitude within Poland")
     price_per_m2: float = Field(..., gt=0, description="Price in PLN per square metre")
     area_m2: float = Field(..., gt=0, le=500)
     floor: int = Field(..., ge=0, le=50)
     build_year: int = Field(..., ge=1900, le=2030)
-    district: Optional[str] = None
+    centre_distance: float = Field(..., ge=0, description="Distance to city centre in km")
+    city: str = Field(..., description="City slug matching cities.py")
 
 
 class ApartmentCreate(ApartmentBase):

@@ -6,7 +6,8 @@ export interface Apartment {
   area_m2: number;
   floor: number;
   build_year: number;
-  district: string | null;
+  centre_distance: number;
+  city: string;
   created_at: string;
 }
 
@@ -50,10 +51,15 @@ export interface TrainStatus {
 
 export interface HeatmapRequest {
   run_id: number;
+  city: string;
   resolution: number;
-  area_m2: number;
-  floor: number;
-  build_year: number;
+  // null = "use typical (p25–p75 mean)" — backend resolves automatically
+  area_min: number | null;
+  area_max: number | null;
+  floor_min: number | null;
+  floor_max: number | null;
+  year_min: number | null;
+  year_max: number | null;
 }
 
 export interface HeatmapResponse {
@@ -61,13 +67,31 @@ export interface HeatmapResponse {
   min_val: number;
   max_val: number;
   bounds: [[number, number], [number, number]];
+  // Typical market ranges from training stats
+  area_p25: number;
+  area_p75: number;
+  floor_p25: number;
+  floor_p75: number;
+  year_p25: number;
+  year_p75: number;
 }
 
+// null values mean "typical" mode (backend uses p25–p75 midpoint)
 export interface HeatmapParams {
-  area_m2: number;
-  floor: number;
-  build_year: number;
+  area_min: number | null;
+  area_max: number | null;
+  floor_min: number | null;
+  floor_max: number | null;
+  year_min: number | null;
+  year_max: number | null;
   resolution: number;
+}
+
+export interface CityInfo {
+  slug: string;
+  display_name: string;
+  centre_lat: number;
+  centre_lon: number;
 }
 
 export interface User {

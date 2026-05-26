@@ -29,7 +29,7 @@ export function DataPoints({ apartments }: Props) {
         >
           <Tooltip>
             <div className="text-sm">
-              <p className="font-semibold">{apt.district}</p>
+              <p className="font-semibold">{apt.city}</p>
               <p>{apt.price_per_m2.toLocaleString("pl-PL")} zł/m²</p>
               <p>{apt.area_m2} m² · piętro {apt.floor} · {apt.build_year}</p>
             </div>

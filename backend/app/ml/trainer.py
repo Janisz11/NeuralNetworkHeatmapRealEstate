@@ -5,11 +5,11 @@ import torch.optim as optim
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader, TensorDataset, random_split
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from sklearn.metrics import r2_score as sklearn_r2
 
 from .model import build_model
-from .preprocessing import fit_stats, normalize_dataset, FeatureStats
+from .preprocessing import fit_stats, normalize_dataset
 
 TRAINING_STATE: Dict[int, Dict[str, Any]] = {}
 
@@ -23,15 +23,29 @@ def train_model(
     weights_path: str,
     batch_size: int = 32,
     val_split: float = 0.2,
+    epoch_offset: int = 0,
+    total_epochs_override: Optional[int] = None,
 ) -> Dict[str, Any]:
-    TRAINING_STATE[run_id] = {
-        "status": "training",
-        "current_epoch": 0,
-        "total_epochs": epochs,
-        "loss": None,
-        "r2_score": None,
-        "loss_history": [],
-    }
+    """Train a model for a single city's DataFrame.
+
+    epoch_offset and total_epochs_override allow the caller (_run_training) to
+    report cumulative progress across multiple cities in one ModelRun.
+    TRAINING_STATE is initialised here only on the first city (epoch_offset==0);
+    subsequent cities continue the existing state.
+    """
+    total_epochs = total_epochs_override if total_epochs_override is not None else epochs
+
+    if epoch_offset == 0:
+        TRAINING_STATE[run_id] = {
+            "status": "training",
+            "current_epoch": 0,
+            "total_epochs": total_epochs,
+            "loss": None,
+            "r2_score": None,
+            "loss_history": [],
+        }
+    else:
+        TRAINING_STATE[run_id]["total_epochs"] = total_epochs
 
     stats = fit_stats(df)
     X, y = normalize_dataset(df, stats)
@@ -49,7 +63,6 @@ def train_model(
     model = build_model(hidden_layers)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=20, factor=0.5, min_lr=1e-6
     )
@@ -79,7 +92,7 @@ def train_model(
 
         scheduler.step(val_loss)
 
-        TRAINING_STATE[run_id]["current_epoch"] = epoch
+        TRAINING_STATE[run_id]["current_epoch"] = epoch_offset + epoch
         TRAINING_STATE[run_id]["loss"] = round(train_loss, 6)
         TRAINING_STATE[run_id]["r2_score"] = round(r2, 4)
         TRAINING_STATE[run_id]["loss_history"].append(round(train_loss, 6))
@@ -91,7 +104,6 @@ def train_model(
         "stats": stats,
     }, weights_path)
 
-    TRAINING_STATE[run_id]["status"] = "done"
     return {
         "mse_loss": TRAINING_STATE[run_id]["loss"],
         "r2_score": TRAINING_STATE[run_id]["r2_score"],

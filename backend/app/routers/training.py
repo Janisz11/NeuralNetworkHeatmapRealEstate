@@ -9,30 +9,50 @@ from ..models.model_run import ModelRun
 from ..schemas.model_run import TrainRequest, TrainResponse, TrainStatusResponse, ModelRunRead
 from ..ml.trainer import train_model, TRAINING_STATE
 from ..config import get_settings
+from ..cities import CITIES
 
 router = APIRouter(prefix="/api", tags=["training"])
 settings = get_settings()
 
 
-def _run_training(run_id: int, df: pd.DataFrame, req: TrainRequest, weights_path: str, db_session):
+def _run_training(run_id: int, df: pd.DataFrame, req: TrainRequest, db_session):
+    cities = list(CITIES.keys())
+    total_epochs = req.epochs * len(cities)
+
     try:
-        result = train_model(
-            run_id=run_id,
-            df=df,
-            epochs=req.epochs,
-            learning_rate=req.learning_rate,
-            hidden_layers=req.hidden_layers,
-            weights_path=weights_path,
-        )
+        city_results = []
+        for i, city in enumerate(cities):
+            city_df = df[df["city"] == city].copy()
+            if len(city_df) < 10:
+                continue
+            weights_path = os.path.join(settings.weights_dir, f"{run_id}_{city}.pt")
+            result = train_model(
+                run_id=run_id,
+                df=city_df,
+                epochs=req.epochs,
+                learning_rate=req.learning_rate,
+                hidden_layers=req.hidden_layers,
+                weights_path=weights_path,
+                epoch_offset=i * req.epochs,
+                total_epochs_override=total_epochs,
+            )
+            city_results.append(result)
+
+        avg_mse = sum(r["mse_loss"] for r in city_results) / len(city_results)
+        avg_r2 = sum(r["r2_score"] for r in city_results) / len(city_results)
+
+        TRAINING_STATE[run_id]["status"] = "done"
         db_session.query(ModelRun).filter(ModelRun.id == run_id).update({
-            "mse_loss": result["mse_loss"],
-            "r2_score": result["r2_score"],
+            "mse_loss": round(avg_mse, 6),
+            "r2_score": round(avg_r2, 4),
             "status": "done",
-            "weights_path": weights_path,
+            "weights_path": settings.weights_dir,
         })
         db_session.commit()
+
     except Exception as exc:
-        TRAINING_STATE[run_id]["status"] = "error"
+        if run_id in TRAINING_STATE:
+            TRAINING_STATE[run_id]["status"] = "error"
         db_session.query(ModelRun).filter(ModelRun.id == run_id).update({"status": "error"})
         db_session.commit()
         raise exc
@@ -54,6 +74,7 @@ def start_training(
         "lat": a.lat, "lon": a.lon,
         "price_per_m2": a.price_per_m2, "area_m2": a.area_m2,
         "floor": a.floor, "build_year": a.build_year,
+        "city": a.city,
     } for a in apartments])
 
     run = ModelRun(
@@ -67,11 +88,9 @@ def start_training(
     db.commit()
     db.refresh(run)
 
-    weights_path = os.path.join(settings.weights_dir, f"{run.id}.pt")
-
     from ..database import SessionLocal
     bg_db = SessionLocal()
-    background_tasks.add_task(_run_training, run.id, df, req, weights_path, bg_db)
+    background_tasks.add_task(_run_training, run.id, df, req, bg_db)
 
     return TrainResponse(run_id=run.id, status="training")
 

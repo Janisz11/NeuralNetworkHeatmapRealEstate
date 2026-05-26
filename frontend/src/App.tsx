@@ -7,24 +7,31 @@ import { MapView } from "./components/Map/MapView";
 import { ParameterPanel } from "./components/Controls/ParameterPanel";
 import { TrainingPanel } from "./components/Controls/TrainingPanel";
 import { ModelSelector } from "./components/Controls/ModelSelector";
+import { CitySelector } from "./components/Controls/CitySelector";
 import { LossChart } from "./components/Charts/LossChart";
 import { AdminPanel } from "./components/Admin/AdminPanel";
 import type { Apartment, HeatmapParams } from "./types";
 
 const DEFAULT_PARAMS: HeatmapParams = {
-  area_m2: 55,
-  floor: 3,
-  build_year: 2010,
+  area_min: null,
+  area_max: null,
+  floor_min: null,
+  floor_max: null,
+  year_min: null,
+  year_max: null,
   resolution: 100,
 };
 
 function MainView() {
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string>("warszawa");
   const [params, setParams] = useState<HeatmapParams>(DEFAULT_PARAMS);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [showDataPoints, setShowDataPoints] = useState(true);
+  const [isTypical, setIsTypical] = useState(true);
+  const [fitTrigger, setFitTrigger] = useState(0);
 
-  const { data: heatmap, loading: heatmapLoading } = useHeatmap(selectedRunId, params);
+  const { data: heatmap, loading: heatmapLoading } = useHeatmap(selectedRunId, selectedCity, params);
   const { train, runId: trainingRunId, isTraining, status, lossHistory } = useTraining();
 
   useEffect(() => {
@@ -34,8 +41,24 @@ function MainView() {
   useEffect(() => {
     if (status?.status === "done" && trainingRunId) {
       setSelectedRunId(trainingRunId);
+      setFitTrigger(t => t + 1);
     }
   }, [status?.status, trainingRunId]);
+
+  const handleCitySelectorChange = (city: string) => {
+    setSelectedCity(city);
+    setFitTrigger(t => t + 1);
+  };
+
+  const handleModelSelect = (runId: number) => {
+    setSelectedRunId(runId);
+    setFitTrigger(t => t + 1);
+  };
+
+  const handleMapCityChange = (city: string) => {
+    setSelectedCity(city);
+    setIsTypical(true);
+  };
 
   return (
     <div className="h-screen bg-gray-950 flex flex-col">
@@ -43,7 +66,7 @@ function MainView() {
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">N</div>
           <div>
-            <h1 className="text-white font-bold text-lg leading-tight">NeuralMap Wrocław</h1>
+            <h1 className="text-white font-bold text-lg leading-tight">NeuralMap Poland</h1>
             <p className="text-gray-500 text-xs">Neural network real estate heatmap</p>
           </div>
         </div>
@@ -68,25 +91,19 @@ function MainView() {
 
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-72 shrink-0 bg-gray-950 border-r border-gray-800 p-3 overflow-y-auto space-y-3">
-          <ModelSelector selectedRunId={selectedRunId} onSelect={setSelectedRunId} />
-          <ParameterPanel params={params} onChange={setParams} heatmapLoading={heatmapLoading} />
+          <CitySelector selectedCity={selectedCity} onChange={handleCitySelectorChange} />
+          <ModelSelector selectedRunId={selectedRunId} onSelect={handleModelSelect} />
+          <ParameterPanel
+            params={params}
+            onChange={setParams}
+            heatmapLoading={heatmapLoading}
+            isTypical={isTypical}
+            onTypicalChange={setIsTypical}
+            heatmap={heatmap ?? null}
+          />
           <TrainingPanel onTrain={train} isTraining={isTraining} status={status} />
           <LossChart lossHistory={lossHistory} />
 
-          {heatmap && (
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
-              <h2 className="text-white font-semibold text-sm uppercase tracking-wider mb-2">Legenda</h2>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-4 rounded" style={{
-                  background: "linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)"
-                }} />
-              </div>
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>{heatmap.min_val.toLocaleString("pl-PL")} zł</span>
-                <span>{heatmap.max_val.toLocaleString("pl-PL")} zł</span>
-              </div>
-            </div>
-          )}
         </aside>
 
         <main className="flex-1 relative">
@@ -94,7 +111,42 @@ function MainView() {
             heatmap={heatmap}
             apartments={apartments}
             showDataPoints={showDataPoints}
+            fitTrigger={fitTrigger}
+            currentCity={selectedCity}
+            onMapCityChange={handleMapCityChange}
           />
+
+          {/* Floating price range widget */}
+          {heatmap && (
+            <div className="absolute top-3 right-3 z-[1000] pointer-events-none">
+              <div className="bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-2xl p-4 shadow-2xl min-w-[240px] space-y-3">
+                <p className="text-slate-400 text-xs uppercase tracking-wider text-center">
+                  Zakres cen w tym widoku
+                </p>
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <span className="text-xs text-blue-400 block mb-0.5">Minimum</span>
+                    <span className="text-xl font-black text-white tabular-nums">
+                      {Math.round(heatmap.min_val).toLocaleString("pl-PL")} zł
+                    </span>
+                    <span className="text-xs text-slate-500 block">/ m²</span>
+                  </div>
+                  <div className="text-slate-600 text-lg pb-4">→</div>
+                  <div className="text-right">
+                    <span className="text-xs text-emerald-400 block mb-0.5">Maksimum</span>
+                    <span className="text-xl font-black text-white tabular-nums">
+                      {Math.round(heatmap.max_val).toLocaleString("pl-PL")} zł
+                    </span>
+                    <span className="text-xs text-slate-500 block">/ m²</span>
+                  </div>
+                </div>
+                <div className="h-1.5 rounded-full" style={{
+                  background: "linear-gradient(to right, #3b82f6, #06b6d4, #22c55e, #eab308, #ef4444)"
+                }} />
+              </div>
+            </div>
+          )}
+
           {!selectedRunId && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-gray-900/80 backdrop-blur rounded-xl p-6 text-center max-w-xs">

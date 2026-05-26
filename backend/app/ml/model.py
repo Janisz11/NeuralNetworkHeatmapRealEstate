@@ -28,4 +28,4 @@ class PricePredictor(nn.Module):
 
 
 def build_model(hidden_sizes: List[int] = None) -> PricePredictor:
-    return PricePredictor(input_size=5, hidden_sizes=hidden_sizes or [64, 32])
+    return PricePredictor(input_size=5, hidden_sizes=hidden_sizes or [128, 64, 32])

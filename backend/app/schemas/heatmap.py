@@ -1,12 +1,18 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
 class HeatmapRequest(BaseModel):
     run_id: int
-    resolution: int = Field(default=100, ge=20, le=300, description="Grid points per axis (NxN)")
-    area_m2: float = Field(default=55.0, gt=0, le=500)
-    floor: int = Field(default=3, ge=0, le=50)
-    build_year: int = Field(default=2010, ge=1900, le=2030)
+    city: str = Field(default="warszawa")
+    resolution: int = Field(default=100, ge=20, le=300)
+    # Feature ranges — None means "use typical (p25–p75 mean from model stats)"
+    area_min: Optional[float] = Field(default=None, ge=0, le=500)
+    area_max: Optional[float] = Field(default=None, ge=0, le=500)
+    floor_min: Optional[float] = Field(default=None, ge=0, le=50)
+    floor_max: Optional[float] = Field(default=None, ge=0, le=50)
+    year_min: Optional[float] = Field(default=None, ge=1900, le=2030)
+    year_max: Optional[float] = Field(default=None, ge=1900, le=2030)
 
 
 class HeatmapResponse(BaseModel):
@@ -14,3 +20,10 @@ class HeatmapResponse(BaseModel):
     min_val: float
     max_val: float
     bounds: list[list[float]]
+    # Typical market ranges from training data — used by ParameterPanel display
+    area_p25: float
+    area_p75: float
+    floor_p25: float
+    floor_p75: float
+    year_p25: float
+    year_p75: float

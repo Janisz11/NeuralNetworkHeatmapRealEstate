@@ -11,7 +11,7 @@ export function TrainingPanel({ onTrain, isTraining, status }: Props) {
   const [modelName, setModelName] = useState("model-v1");
   const [epochs, setEpochs] = useState(200);
   const [lr, setLr] = useState(0.001);
-  const [hiddenLayers, setHiddenLayers] = useState("64,32");
+  const [hiddenLayers, setHiddenLayers] = useState("128,64,32");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +62,7 @@ export function TrainingPanel({ onTrain, isTraining, status }: Props) {
             className="w-full bg-gray-800 text-white text-sm rounded px-3 py-2 border border-gray-600 focus:outline-none focus:border-blue-500"
             value={hiddenLayers}
             onChange={(e) => setHiddenLayers(e.target.value)}
-            placeholder="64,32"
+            placeholder="128,64,32"
           />
         </div>
 
